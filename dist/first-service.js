@@ -13,13 +13,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const amqplib_1 = __importDefault(require("amqplib"));
+const express_1 = __importDefault(require("express"));
+const app = (0, express_1.default)();
+app.use(express_1.default.json());
+const PORT = 4000;
+let channel, connection;
 const connect = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const connection = yield amqplib_1.default.connect("amqp://localhost:3003");
+        const amqpServer = 'amqp://localhost:5672';
+        connection = yield amqplib_1.default.connect(amqpServer);
+        channel = yield connection.createChannel();
+        yield channel.assertQueue('post');
     }
-    catch (err) {
-        console.error(err);
+    catch (error) {
+        console.error(error);
     }
 });
 connect();
-//# sourceMappingURL=server.js.map
+app.post('/posts', (req, res) => {
+    const data = req.body;
+    channel.sendToQueue('post', Buffer.from(JSON.stringify(Object.assign({}, data))));
+    res.send('Post submitted');
+});
+app.listen(PORT, () => {
+    console.log(`Server running on ${PORT}`);
+});
+//# sourceMappingURL=first-service.js.map
