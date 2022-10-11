@@ -1,27 +1,21 @@
 import amqplib, { Channel, Connection } from 'amqplib';
 import express, { Request, Response } from "express";
+import { config } from './config';
 
 const app = express();
 
-// parse the request body
 app.use(express.json());
 
-// port where the service will run
-const PORT = 4000;
+const PORT = config.FIRST_SERVICE_PORT;
+const amqpServer = config.AMQP_SERVER_URI;
 
-// rabbitmq to be global variables
 let channel: Channel, connection: Connection;
 
-// connect to rabbitmq
-const connect = async (): Promise<void> => {
+const connectRabbitMq = async (): Promise<void> => {
 
   try {
-    // rabbitmq default port is 5672
-    const amqpServer = 'amqp://localhost:5672';
     connection = await amqplib.connect(amqpServer);
     channel = await connection.createChannel();
-
-    // make sure that the order channel is created, if not this statement will create it
     await channel.assertQueue('post');
   } 
 
@@ -31,13 +25,16 @@ const connect = async (): Promise<void> => {
 
 }
 
-connect();
+connectRabbitMq().then(() => { 
+  app.listen(PORT, () => {
+    console.log(`Server running on ${PORT}`);
+  });
+});;
 
 app.post('/posts', (req: Request, res: Response) => {
 
   const data = req.body;
 
-  // send a message to all the services connected to 'order' queue, add the date to differentiate between them
   channel.sendToQueue('post',
     Buffer.from(
       JSON.stringify({
@@ -49,9 +46,6 @@ app.post('/posts', (req: Request, res: Response) => {
   res.send('Post submitted');
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on ${PORT}`);
-});
 
 
 

@@ -14,13 +14,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const amqplib_1 = __importDefault(require("amqplib"));
 const express_1 = __importDefault(require("express"));
+const errorHandler_1 = require("./errorHandler");
+const config_1 = require("./config");
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
-const PORT = 4000;
+app.use(errorHandler_1.errorHandler);
+const PORT = config_1.config.FIRST_SERVICE_PORT;
+const amqpServer = config_1.config.AMQP_SERVER_URI;
 let channel, connection;
-const connect = () => __awaiter(void 0, void 0, void 0, function* () {
+const connectRabbitMq = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const amqpServer = 'amqp://localhost:5672';
         connection = yield amqplib_1.default.connect(amqpServer);
         channel = yield connection.createChannel();
         yield channel.assertQueue('post');
@@ -29,13 +32,15 @@ const connect = () => __awaiter(void 0, void 0, void 0, function* () {
         console.error(error);
     }
 });
-connect();
+connectRabbitMq().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Server running on ${PORT}`);
+    });
+});
+;
 app.post('/posts', (req, res) => {
     const data = req.body;
     channel.sendToQueue('post', Buffer.from(JSON.stringify(Object.assign({}, data))));
     res.send('Post submitted');
-});
-app.listen(PORT, () => {
-    console.log(`Server running on ${PORT}`);
 });
 //# sourceMappingURL=first-service.js.map

@@ -15,13 +15,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const amqplib_1 = __importDefault(require("amqplib"));
 const express_1 = __importDefault(require("express"));
 const fs_1 = __importDefault(require("fs"));
+const config_1 = require("./config");
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
-const PORT = 4001;
+const PORT = config_1.config.SECOND_SERVICE_PORT;
+const amqpServer = config_1.config.AMQP_SERVER_URI;
 let channel, connection;
 const connect = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const amqpServer = 'amqp://localhost:5672';
         connection = yield amqplib_1.default.connect(amqpServer);
         channel = yield connection.createChannel();
         yield channel.consume('post', (data) => __awaiter(void 0, void 0, void 0, function* () {
@@ -33,26 +34,19 @@ const connect = () => __awaiter(void 0, void 0, void 0, function* () {
         console.error(error);
     }
 });
-connect();
-app.listen(PORT, () => {
-    console.log(`Server running on ${PORT}`);
+connect().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Server running on ${PORT}`);
+    });
 });
 const handleDataFile = (filePath, data) => __awaiter(void 0, void 0, void 0, function* () {
-    fs_1.default.stat(filePath, (exists) => {
-        if (exists == null) {
-            fs_1.default.appendFile(filePath, data.content.toString(), (err) => {
-                if (err)
-                    console.error("error in writing to file");
-                console.log('Saved!');
-            });
-        }
-        else if (exists.code === 'ENOENT') {
-            fs_1.default.writeFile(filePath, data.content.toString(), (err) => {
-                if (err)
-                    console.error("error in creating file");
-                console.log('Created!');
-            });
-        }
-    });
+    try {
+        fs_1.default.appendFile(filePath, data.content.toString() + "\n", (err) => {
+            console.log('Saved!');
+        });
+    }
+    catch (error) {
+        console.error("Can't write to file!");
+    }
 });
 //# sourceMappingURL=second-service.js.map
